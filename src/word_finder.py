@@ -1,0 +1,2 @@
+class WordFinder:
+    pass
