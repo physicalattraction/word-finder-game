@@ -1,8 +1,11 @@
 import os
 import os.path
 import string
+import time
 import unicodedata
-from typing import Any, List, Optional, Set, TypeVar
+from typing import List, Optional, TypeVar
+
+from humanfriendly import format_timespan
 
 T = TypeVar('T')
 
@@ -64,6 +67,45 @@ def get_data_dir() -> str:
     """
 
     return os.path.join(get_root_dir(), 'data')
+
+
+class measure_time:
+    """
+    Class, used as a context manager, to measure the time spent within the context.
+
+    After exiting this context, the object variable `seconds` contains the spent time in seconds.
+
+    Typical usage:
+
+    with measure_time() as t:
+        do_something_lengthy()
+    print('The operation took {} seconds to complete'.format(t.seconds))
+    """
+
+    def __init__(self):
+        self.start_time = None
+        self.end_time = None
+
+    def __enter__(self):
+        self.start_time = time.time()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.end_time = time.time()
+
+    def __str__(self):
+        return format_timespan(round(self.total_seconds), max_units=2)
+
+    @property
+    def total_seconds(self) -> float:
+        """
+        Return the time spent since entering the context manager in seconds
+        """
+
+        if self.start_time is None:
+            raise ValueError('Not started yet')
+        end_time = self.end_time or time.time()
+        return end_time - self.start_time
 
 
 if __name__ == '__main__':

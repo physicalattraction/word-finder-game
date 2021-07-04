@@ -2,11 +2,15 @@ import os
 import string
 from typing import Iterator
 
-from utils import available_elements, clean_word, get_data_dir
+from utils import available_elements, clean_word, get_data_dir, remove_accents
 
 
 class WordList:
-    DEFAULT_WORD_LIST = 'dutch_words'
+    """
+    Get word lists from https://github.com/OpenTaal/opentaal-wordlist
+    """
+
+    DEFAULT_WORD_LIST = 'basiswoorden_gekeurd'
 
     def __init__(self, word_list: str = None, nr_letters: int = 0):
         """
@@ -53,6 +57,8 @@ class WordList:
 
         with open(os.path.join(get_data_dir(), filename_in), 'r') as f:
             original_words = [word.replace('\n', '') for word in f]
+        original_words = [word for word in original_words
+                          if all(letter in string.ascii_lowercase for letter in remove_accents(word))]
         cleaned_words = sorted(available_elements(*{clean_word(word, allowed_chars)
                                                     for word in original_words}))
         with open(os.path.join(get_data_dir(), filename_out), 'w') as f:
@@ -61,7 +67,7 @@ class WordList:
 
 if __name__ == '__main__':
     # This is how to clean a new list of words
-    WordList.clean_original('dutch_words_original.txt', 'dutch_words.txt')
+    # WordList.clean_original('basiswoorden_gekeurd_original.txt', 'basiswoorden_gekeurd.txt')
 
     # Example how to count the number of 13 letter words
     wl_13 = WordList(nr_letters=13)
