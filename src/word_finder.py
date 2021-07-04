@@ -11,6 +11,8 @@ from word_list import WordList
 
 
 class WordFinder:
+    word: str = ''
+    anagrams: List[str] = []
     hint_level: int = 0
     guessed_words: Set[str] = set()
 
@@ -19,19 +21,6 @@ class WordFinder:
 
         self.word_list = WordList()
         self.anagram_searcher = AnagramSearcher()
-
-        self._word = ''
-        self._anagrams: List[str] = []
-
-    @property
-    def word(self) -> str:
-        assert self._word, 'Reset game state before accessing word'
-        return self._word
-
-    @property
-    def anagrams(self) -> List[str]:
-        assert self._anagrams, 'Reset game state before accessing anagrams'
-        return self._anagrams
 
     @property
     def nr_anagrams(self) -> int:
@@ -56,7 +45,7 @@ class WordFinder:
         self._query_play_again()
 
     def _reset_game_state(self):
-        self._word, self._anagrams = self._select_word()
+        self._select_word()
         self.guessed_words = set()
 
         # Since you know the amount of letters of the first word, the first hint shall reveal a letter already
@@ -77,6 +66,7 @@ class WordFinder:
         elif guess == 'B':
             guessed_words_str = ', '.join(sorted(sorted(self.guessed_words), key=len))
             print(f'You have guessed: {guessed_words_str}')
+            self._print_word_length_info()
         elif guess == 'H':
             print('B = check which words you have already guessed.\n'
                   'L = get a hint, use multiple times for more revealing hints.\n'
@@ -130,19 +120,33 @@ class WordFinder:
         random.seed(time.time())  # Undo a possible previous seed
         random.shuffle(candidate_words)
         for word in candidate_words:
-            anagrams = set()
-            for nr_letters in range(3, len(word) + 1):
-                for subword in itertools.combinations(word, nr_letters):
-                    # noinspection PyTypeChecker
-                    anagrams |= set(self.anagram_searcher.find_anagrams_for(subword))
+            min_word_length = 3
+            anagrams = self._find_anagrams(word, min_word_length)
+            while len(anagrams) > 80:
+                if min_word_length == len(word):
+                    # This rare event happens when there are basically only 3-letter words as anagrams
+                    continue
+                min_word_length += 1
+                anagrams = self._find_anagrams(word, min_word_length)
             # Only select words with a minimum number of anagrams and where not all anagrams are short
             mean_word_length = mean([len(anagram) for anagram in anagrams])
             if len(anagrams) >= 8 and mean_word_length >= 4:
                 # Sort by word length, then alphabetically
                 anagrams = sorted(sorted(anagrams), key=len, reverse=True)
-                print(f'The mean word length for this puzzle is {mean_word_length:.2f}')
-                return word, anagrams
+                self.word = word
+                self.anagrams = anagrams
+                self._print_word_length_info()
+                return
         raise AssertionError('No word can be selected')
+
+    def _find_anagrams(self, word: str, min_length: int):
+        assert min_length <= len(word)
+        anagrams = set()
+        for nr_letters in range(min_length, len(word) + 1):
+            for subword in itertools.combinations(word, nr_letters):
+                # noinspection PyTypeChecker
+                anagrams |= set(self.anagram_searcher.find_anagrams_for(subword))
+        return anagrams
 
     @staticmethod
     def _next_word_for_hint(guessed_words: Set[str], anagrams: List[str]) -> str:
@@ -162,6 +166,12 @@ class WordFinder:
         ) + f' ({len(anagram)})'
         print(hint)
         self.hint_level += 1
+
+    def _print_word_length_info(self):
+        min_word_length = min([len(anagram) for anagram in self.anagrams])
+        mean_word_length = mean([len(anagram) for anagram in self.anagrams])
+        print(f'The min word length for this puzzle is {min_word_length}\n'
+              f'The mean word length for this puzzle is {mean_word_length:.2f}')
 
     def _quit(self) -> None:
         guessed_words_str = ', '.join(sorted(self.guessed_words))
